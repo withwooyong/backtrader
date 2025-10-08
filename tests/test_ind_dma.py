@@ -26,26 +26,45 @@ import testcommon
 import backtrader as bt
 import backtrader.indicators as btind
 
+# 테스트할 데이터 개수
 chkdatas = 1
+
+# DMA 지표의 예상 값들 (30일 Displaced Moving Average)
+# 각 값은 [시작점, 중간점, 끝점] 순서로 되어 있음
+# DMA는 이동평균을 특정 기간만큼 앞으로 이동시킨 지표입니다
+# 일반 이동평균보다 추세 변화에 더 빠르게 반응합니다
 chkvals = [
     ['4121.903804', '3677.634675', '3579.962958']
 ]
 
 
+# 지표의 최소 기간 (DMA의 경우 30일)
 chkmin = 30
+
+# 테스트할 지표 클래스 (Displaced Moving Average)
 chkind = btind.DMA
 
 
 def test_run(main=False):
+    """
+    DMA 지표 테스트를 실행하는 함수
+    
+    Args:
+        main: 메인 출력 모드 여부 (True면 상세 정보 출력)
+    """
+    # 테스트 데이터 로드
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
+    
+    # 공통 테스트 함수를 사용하여 DMA 지표 테스트 실행
     testcommon.runtest(datas,
                        testcommon.TestStrategy,
                        main=main,
-                       plot=main,
-                       chkind=chkind,
-                       chkmin=chkmin,
-                       chkvals=chkvals)
+                       plot=main,          # main=True일 때만 플롯 표시
+                       chkind=chkind,      # 테스트할 지표
+                       chkmin=chkmin,      # 최소 기간
+                       chkvals=chkvals)    # 예상 값들
 
 
 if __name__ == '__main__':
+    # 스크립트가 직접 실행될 때 메인 모드로 테스트 실행
     test_run(main=True)

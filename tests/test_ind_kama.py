@@ -26,25 +26,44 @@ import testcommon
 import backtrader as bt
 import backtrader.indicators as btind
 
+# 테스트할 데이터 개수
 chkdatas = 1
+
+# KAMA 지표의 예상 값들 (30일 Kaufman Adaptive Moving Average)
+# 각 값은 [시작점, 중간점, 끝점] 순서로 되어 있음
+# KAMA는 시장의 변동성에 따라 적응적으로 조정되는 이동평균 지표입니다
+# 변동성이 낮을 때는 빠르게, 높을 때는 천천히 반응합니다
 chkvals = [
     ['4054.187922', '3648.549000', '3592.979190'],
 ]
 
+# 지표의 최소 기간 (KAMA의 경우 30일 + 1 = 31일)
 chkmin = 31
+
+# 테스트할 지표 클래스 (Kaufman Adaptive Moving Average)
 chkind = btind.KAMA
 
 
 def test_run(main=False):
+    """
+    KAMA 지표 테스트를 실행하는 함수
+    
+    Args:
+        main: 메인 출력 모드 여부 (True면 상세 정보 출력)
+    """
+    # 테스트 데이터 로드
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
+    
+    # 공통 테스트 함수를 사용하여 KAMA 지표 테스트 실행
     testcommon.runtest(datas,
                        testcommon.TestStrategy,
                        main=main,
-                       plot=main,
-                       chkind=chkind,
-                       chkmin=chkmin,
-                       chkvals=chkvals)
+                       plot=main,          # main=True일 때만 플롯 표시
+                       chkind=chkind,      # 테스트할 지표
+                       chkmin=chkmin,      # 최소 기간
+                       chkvals=chkvals)    # 예상 값들
 
 
 if __name__ == '__main__':
+    # 스크립트가 직접 실행될 때 메인 모드로 테스트 실행
     test_run(main=True)

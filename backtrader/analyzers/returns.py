@@ -18,6 +18,19 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
+
+# =============================================================================
+# 수익률 분석기(Returns Analyzer) 모듈
+# =============================================================================
+# 이 모듈은 백테스팅 결과의 수익률을 다양한 방식으로 계산하고 분석합니다.
+# 로그 수익률 방식을 사용하여 총 수익률, 평균 수익률, 복합 수익률, 연간화 수익률을 계산합니다.
+# 
+# 주요 특징:
+# - 로그 수익률 기반 계산으로 정확한 복합 수익률 제공
+# - 다양한 시간 프레임 지원
+# - 연간화된 수익률 계산으로 다른 전략과의 비교 가능
+# =============================================================================
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -27,6 +40,11 @@ import backtrader as bt
 from backtrader import TimeFrameAnalyzerBase
 
 
+# =============================================================================
+# Returns 클래스 - 수익률 분석기
+# =============================================================================
+# 이 클래스는 로그 수익률 방식을 사용하여 다양한 수익률 지표를 계산합니다.
+# 로그 수익률은 복합 수익률 계산에 더 정확하며, 샤프 비율 계산에도 유리합니다.
 class Returns(TimeFrameAnalyzerBase):
     '''Total, Average, Compound and Annualized Returns calculated using a
     logarithmic approach
@@ -89,41 +107,71 @@ class Returns(TimeFrameAnalyzerBase):
 
     '''
 
+    # =============================================================================
+    # 분석기 파라미터 설정
+    # =============================================================================
     params = (
-        ('tann', None),
-        ('fund', None),
+        ('tann', None),    # 연간화를 위한 기간 수 (None이면 자동 감지)
+        ('fund', None),    # 펀드 모드 설정 (None이면 브로커 설정 자동 감지)
     )
 
+    # =============================================================================
+    # 시간 프레임별 연간화 상수 정의
+    # =============================================================================
+    # 각 시간 프레임에 대해 연간화할 때 사용하는 기간 수
+    # 예: 일별 데이터는 252일(거래일 기준), 주별 데이터는 52주 등
     _TANN = {
-        bt.TimeFrame.Days: 252.0,
-        bt.TimeFrame.Weeks: 52.0,
-        bt.TimeFrame.Months: 12.0,
-        bt.TimeFrame.Years: 1.0,
+        bt.TimeFrame.Days: 252.0,    # 일별: 252일 (연간 거래일)
+        bt.TimeFrame.Weeks: 52.0,    # 주별: 52주
+        bt.TimeFrame.Months: 12.0,   # 월별: 12개월
+        bt.TimeFrame.Years: 1.0,     # 년별: 1년
     }
 
     def start(self):
+        # =============================================================================
+        # 분석기 시작 시 초기화
+        # =============================================================================
         super(Returns, self).start()
         if self.p.fund is None:
+            # 펀드 모드가 설정되지 않았으면 브로커의 설정을 자동 감지
             self._fundmode = self.strategy.broker.fundmode
         else:
+            # 사용자가 명시적으로 설정한 펀드 모드 사용
             self._fundmode = self.p.fund
 
+        # =============================================================================
+        # 시작 가치 설정
+        # =============================================================================
         if not self._fundmode:
+            # 펀드 모드가 아닌 경우: 총 순자산 가치 사용
             self._value_start = self.strategy.broker.getvalue()
         else:
+            # 펀드 모드인 경우: 펀드 가치 사용
             self._value_start = self.strategy.broker.fundvalue
 
-        self._tcount = 0
+        self._tcount = 0  # 하위 기간 카운터 초기화
 
     def stop(self):
+        # =============================================================================
+        # 분석기 종료 시 최종 수익률 계산
+        # =============================================================================
         super(Returns, self).stop()
 
+        # =============================================================================
+        # 종료 가치 설정
+        # =============================================================================
         if not self._fundmode:
+            # 펀드 모드가 아닌 경우: 총 순자산 가치 사용
             self._value_end = self.strategy.broker.getvalue()
         else:
+            # 펀드 모드인 경우: 펀드 가치 사용
             self._value_end = self.strategy.broker.fundvalue
 
+        # =============================================================================
+        # 복합 수익률 계산 (로그 수익률)
+        # =============================================================================
         # Compound return
+        # 복합 수익률
         try:
             nlrtot = self._value_end / self._value_start
         except ZeroDivisionError:
@@ -136,10 +184,18 @@ class Returns(TimeFrameAnalyzerBase):
 
         self.rets['rtot'] = rtot
 
+        # =============================================================================
+        # 평균 수익률 계산
+        # =============================================================================
         # Average return
+        # 평균 수익률
         self.rets['ravg'] = ravg = rtot / self._tcount
 
+        # =============================================================================
+        # 연간화된 정규화 수익률 계산
+        # =============================================================================
         # Annualized normalized return
+        # 연간화된 정규화 수익률
         tann = self.p.tann or self._TANN.get(self.timeframe, None)
         if tann is None:
             tann = self._TANN.get(self.data._timeframe, 1.0)  # assign default
@@ -149,7 +205,10 @@ class Returns(TimeFrameAnalyzerBase):
         else:
             self.rets['rnorm'] = rnorm = ravg
 
-        self.rets['rnorm100'] = rnorm * 100.0  # human readable %
+        self.rets['rnorm100'] = rnorm * 100.0  # human readable % (사람이 읽기 쉬운 백분율)
 
     def _on_dt_over(self):
-        self._tcount += 1  # count the subperiod
+        # =============================================================================
+        # 시간 프레임 경계에서 하위 기간 카운터 증가
+        # =============================================================================
+        self._tcount += 1  # count the subperiod (하위 기간 카운트)

@@ -26,25 +26,44 @@ import testcommon
 import backtrader as bt
 import backtrader.indicators as btind
 
+# 테스트할 데이터 개수
 chkdatas = 1
+
+# Price Oscillator 지표의 예상 값들 (26일 Price Oscillator)
+# 각 값은 [시작점, 중간점, 끝점] 순서로 되어 있음
+# Price Oscillator는 두 개의 이동평균 간의 차이를 백분율로 나타내는 지표입니다
+# 0을 중심으로 양수/음수 값을 가지며, 추세의 방향과 강도를 나타냅니다
 chkvals = [
     ['25.821368', '23.202675', '-9.927422']
 ]
 
+# 지표의 최소 기간 (Price Oscillator의 경우 26일)
 chkmin = 26
+
+# 테스트할 지표 클래스 (Price Oscillator)
 chkind = btind.PriceOsc
 
 
 def test_run(main=False):
+    """
+    Price Oscillator 지표 테스트를 실행하는 함수
+    
+    Args:
+        main: 메인 출력 모드 여부 (True면 상세 정보 출력)
+    """
+    # 테스트 데이터 로드
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
+    
+    # 공통 테스트 함수를 사용하여 Price Oscillator 지표 테스트 실행
     testcommon.runtest(datas,
                        testcommon.TestStrategy,
                        main=main,
-                       plot=main,
-                       chkind=chkind,
-                       chkmin=chkmin,
-                       chkvals=chkvals)
+                       plot=main,          # main=True일 때만 플롯 표시
+                       chkind=chkind,      # 테스트할 지표
+                       chkmin=chkmin,      # 최소 기간
+                       chkvals=chkvals)    # 예상 값들
 
 
 if __name__ == '__main__':
+    # 스크립트가 직접 실행될 때 메인 모드로 테스트 실행
     test_run(main=True)

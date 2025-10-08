@@ -22,21 +22,36 @@ import testcommon
 
 class TestFrompackages(testcommon.SampleParamsHolder):
     """
-    This class is used for testing that inheriting from base class that
-    uses `frompackages` import mechanism, doesnt brake the functionality
-    of the base class.
+    frompackages 가져오기 메커니즘을 사용하는 기본 클래스로부터 상속받을 때
+    기본 클래스의 기능이 손상되지 않는지 테스트하기 위한 클래스
+    
+    이 클래스는 SampleParamsHolder를 상속받아 frompackages 지시문의
+    상속 시 동작을 검증합니다.
     """
     def __init__(self):
+        """클래스 초기화"""
         super(TestFrompackages, self).__init__()
-        # Prepare the lags array
+        # 지연 배열 준비 (현재는 구현되지 않음)
+
 
 def test_run(main=False):
     """
-    Instantiate the TestFrompackages and see that no exception is raised
-    Bug Discussion:
+    TestFrompackages 클래스를 인스턴스화하고 예외가 발생하지 않는지 확인
+    
+    이 테스트는 frompackages 지시문이 상속 시에도 올바르게 작동하는지
+    검증합니다.
+    
+    버그 논의:
     https://community.backtrader.com/topic/2661/frompackages-directive-functionality-seems-to-be-broken-when-using-inheritance
+    
+    Args:
+        main: 메인 출력 모드 여부 (사용되지 않음)
     """
+    # TestFrompackages 클래스 인스턴스 생성
+    # 예외가 발생하지 않으면 테스트 통과
     test = TestFrompackages()
 
+
 if __name__ == '__main__':
+    # 스크립트가 직접 실행될 때 테스트 실행
     test_run(main=True)

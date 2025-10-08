@@ -26,27 +26,47 @@ import testcommon
 import backtrader as bt
 import backtrader.indicators as btind
 
+# 테스트할 데이터 개수
 chkdatas = 1
+
+# EMA Envelope 지표의 예상 값들 (30일 EMA Envelope)
+# EMA Envelope는 3개의 라인을 가짐: [Lower Band, Middle Band, Upper Band]
+# 각 값은 [시작점, 중간점, 끝점] 순서로 되어 있음
+# EMA Envelope는 EMA(Exponential Moving Average)를 중심으로 상하 밴드를 생성합니다
+# 일반 SMA Envelope보다 최근 가격 변화에 더 민감하게 반응합니다
 chkvals = [
-    ['4070.115719', '3644.444667', '3581.728712'],
-    ['4171.868612', '3735.555783', '3671.271930'],
-    ['3968.362826', '3553.333550', '3492.185494'],
+    ['4070.115719', '3644.444667', '3581.728712'],   # Lower Band (하단 밴드)
+    ['4171.868612', '3735.555783', '3671.271930'],   # Middle Band (중간 밴드)
+    ['3968.362826', '3553.333550', '3492.185494'],   # Upper Band (상단 밴드)
 ]
 
+# 지표의 최소 기간 (EMA Envelope의 경우 30일)
 chkmin = 30
+
+# 테스트할 지표 클래스 (EMA Envelope)
 chkind = btind.EMAEnvelope
 
 
 def test_run(main=False):
+    """
+    EMA Envelope 지표 테스트를 실행하는 함수
+    
+    Args:
+        main: 메인 출력 모드 여부 (True면 상세 정보 출력)
+    """
+    # 테스트 데이터 로드
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
+    
+    # 공통 테스트 함수를 사용하여 EMA Envelope 지표 테스트 실행
     testcommon.runtest(datas,
                        testcommon.TestStrategy,
                        main=main,
-                       plot=main,
-                       chkind=chkind,
-                       chkmin=chkmin,
-                       chkvals=chkvals)
+                       plot=main,          # main=True일 때만 플롯 표시
+                       chkind=chkind,      # 테스트할 지표
+                       chkmin=chkmin,      # 최소 기간
+                       chkvals=chkvals)    # 예상 값들
 
 
 if __name__ == '__main__':
+    # 스크립트가 직접 실행될 때 메인 모드로 테스트 실행
     test_run(main=True)

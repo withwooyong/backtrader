@@ -18,6 +18,18 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
+
+# =============================================================================
+# Backtrader 백테스팅 엔진의 핵심 모듈
+# =============================================================================
+# 이 파일은 Backtrader의 중앙 제어 시스템으로, 전체 백테스팅 프로세스를 조율합니다.
+# 주요 기능:
+# - 데이터 피드 관리 및 전략 실행
+# - 브로커 시뮬레이션 및 포트폴리오 관리
+# - 결과 수집 및 분석
+# - 멀티프로세싱 최적화 지원
+# =============================================================================
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -35,28 +47,38 @@ import backtrader as bt
 from .utils.py3 import (map, range, zip, with_metaclass, string_types,
                         integer_types)
 
-from . import linebuffer
-from . import indicator
-from .brokers import BackBroker
-from .metabase import MetaParams
-from . import observers
-from .writer import WriterFile
-from .utils import OrderedDict, tzparse, num2date, date2num
-from .strategy import Strategy, SignalStrategy
+# =============================================================================
+# 핵심 모듈 임포트
+# =============================================================================
+from . import linebuffer          # 라인 버퍼 관리 (가격 데이터 저장)
+from . import indicator           # 기술적 지표 계산
+from .brokers import BackBroker   # 브로커 시뮬레이션
+from .metabase import MetaParams  # 메타클래스 기반 파라미터 관리
+from . import observers           # 거래 관찰 및 모니터링
+from .writer import WriterFile    # 결과 파일 출력
+from .utils import OrderedDict, tzparse, num2date, date2num  # 유틸리티 함수들
+from .strategy import Strategy, SignalStrategy  # 전략 기본 클래스들
 from .tradingcal import (TradingCalendarBase, TradingCalendar,
-                         PandasMarketCalendar)
-from .timer import Timer
+                         PandasMarketCalendar)  # 거래 캘린더
+from .timer import Timer          # 타이머 기능
 
-# Defined here to make it pickable. Ideally it could be defined inside Cerebro
-
-
+# =============================================================================
+# 최적화 결과를 저장하기 위한 클래스
+# =============================================================================
+# 이 클래스는 여기에 정의하여 pickle 가능하게 만듭니다.
+# 이상적으로는 Cerebro 클래스 내부에 정의할 수 있지만, 멀티프로세싱을 위해 분리
 class OptReturn(object):
     def __init__(self, params, **kwargs):
-        self.p = self.params = params
+        self.p = self.params = params  # 파라미터 저장
         for k, v in kwargs.items():
-            setattr(self, k, v)
+            setattr(self, k, v)  # 추가 속성들을 동적으로 설정
 
 
+# =============================================================================
+# Cerebro 클래스 - 백테스팅 엔진의 핵심
+# =============================================================================
+# 이 클래스는 전체 백테스팅 시스템을 조율하는 중앙 제어 시스템입니다.
+# MetaParams를 상속받아 파라미터 기반 설정을 지원합니다.
 class Cerebro(with_metaclass(MetaParams, object)):
     '''Params:
 

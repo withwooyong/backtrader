@@ -18,6 +18,21 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
+
+# =============================================================================
+# 거래 분석기(Trade Analyzer) 모듈
+# =============================================================================
+# 이 모듈은 백테스팅 결과의 모든 거래에 대한 상세한 통계를 제공합니다.
+# 거래 분석기는 개별 거래의 성과를 분석하여 전략의 효율성을 평가하는 데 도움을 줍니다.
+# 
+# 주요 분석 항목:
+# - 거래 수: 총 거래 수, 완료된 거래 수, 진행 중인 거래 수
+# - 연속 성과: 연속 승/패 횟수 (현재/최장)
+# - 수익/손실: 총 수익, 평균 수익, 최대 수익/손실
+# - 포지션별 분석: 롱/숏 포지션별 통계
+# - 거래 기간: 시장 체류 기간 (바 단위)
+# =============================================================================
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -28,6 +43,11 @@ from backtrader.utils import AutoOrderedDict, AutoDict
 from backtrader.utils.py3 import MAXINT
 
 
+# =============================================================================
+# TradeAnalyzer 클래스 - 거래 통계 분석기
+# =============================================================================
+# 이 클래스는 완료된 거래에 대한 상세한 통계를 제공하며, 
+# 진행 중인 거래 수도 함께 추적합니다.
 class TradeAnalyzer(Analyzer):
     '''
     Provides statistics on closed trades (keeps also the count of open ones)
@@ -65,35 +85,59 @@ class TradeAnalyzer(Analyzer):
         - dictname['total']['total'] which will have a value of 0 (the field is
           also reachable with dot notation dictname.total.total
     '''
+    
     def create_analysis(self):
+        # =============================================================================
+        # 분석 결과를 저장할 구조 생성
+        # =============================================================================
+        # AutoOrderedDict를 사용하여 점(.) 표기법 지원
         self.rets = AutoOrderedDict()
-        self.rets.total.total = 0
+        self.rets.total.total = 0  # 총 거래 수 초기화
 
     def stop(self):
+        # =============================================================================
+        # 분석기 종료 시 정리
+        # =============================================================================
         super(TradeAnalyzer, self).stop()
-        self.rets._close()
+        self.rets._close()  # 점 표기법으로 더 이상 키 생성 불가
 
     def notify_trade(self, trade):
+        # =============================================================================
+        # 거래 상태 변화 알림 처리
+        # =============================================================================
         if trade.justopened:
-            # Trade just opened
-            self.rets.total.total += 1
-            self.rets.total.open += 1
+            # =============================================================================
+            # 거래가 새로 열렸을 때
+            # =============================================================================
+            self.rets.total.total += 1      # 총 거래 수 증가
+            self.rets.total.open += 1       # 진행 중인 거래 수 증가
 
         elif trade.status == trade.Closed:
+            # =============================================================================
+            # 거래가 완료되었을 때
+            # =============================================================================
             trades = self.rets
 
-            res = AutoDict()
+            res = AutoDict()  # 이 거래의 결과를 저장할 딕셔너리
             # Trade just closed
 
-            won = res.won = int(trade.pnlcomm >= 0.0)
-            lost = res.lost = int(not won)
-            tlong = res.tlong = trade.long
-            tshort = res.tshort = not trade.long
+            # =============================================================================
+            # 거래 결과 기본 정보 설정
+            # =============================================================================
+            won = res.won = int(trade.pnlcomm >= 0.0)      # 수익 거래 여부 (1: 수익, 0: 손실)
+            lost = res.lost = int(not won)                  # 손실 거래 여부 (1: 손실, 0: 수익)
+            tlong = res.tlong = trade.long                  # 롱 포지션 여부
+            tshort = res.tshort = not trade.long            # 숏 포지션 여부
 
-            trades.total.open -= 1
-            trades.total.closed += 1
+            # =============================================================================
+            # 거래 상태 업데이트
+            # =============================================================================
+            trades.total.open -= 1      # 진행 중인 거래 수 감소
+            trades.total.closed += 1    # 완료된 거래 수 증가
 
-            # Streak
+            # =============================================================================
+            # 연속 성과(Streak) 계산
+            # =============================================================================
             for wlname in ['won', 'lost']:
                 wl = res[wlname]
 
@@ -150,7 +194,11 @@ class TradeAnalyzer(Analyzer):
                     func = max if wlname == 'won' else min
                     trls.pnl[wlname].max = func(wm, pnlcomm)
 
+            # =============================================================================
+            # 거래 기간(Length) 통계 계산
+            # =============================================================================
             # Length
+            # 거래 기간
             trades.len.total += trade.barlen
             trades.len.average = trades.len.total / trades.total.closed
             ml = trades.len.max or 0
@@ -159,7 +207,11 @@ class TradeAnalyzer(Analyzer):
             ml = trades.len.min or MAXINT
             trades.len.min = min(ml, trade.barlen)
 
+            # =============================================================================
+            # 승/패별 거래 기간 통계
+            # =============================================================================
             # Length Won/Lost
+            # 승/패별 거래 기간
             for wlname in ['won', 'lost']:
                 trwl = trades.len[wlname]
                 wl = res[wlname]
@@ -173,7 +225,11 @@ class TradeAnalyzer(Analyzer):
                     m = trwl.min or MAXINT
                     trwl.min = min(m, trade.barlen * wl)
 
+            # =============================================================================
+            # 롱/숏별 거래 기간 통계
+            # =============================================================================
             # Length Long/Short
+            # 롱/숏별 거래 기간
             for lsname in ['long', 'short']:
                 trls = trades.len[lsname]  # trades.len.long
                 ls = res['t' + lsname]  # tlong/tshort
@@ -184,12 +240,19 @@ class TradeAnalyzer(Analyzer):
                 total_ls = trades[lsname].total   # trades.long.total
                 trls.average = trls.total / (total_ls or 1.0)
 
+                # =============================================================================
+                # 최대/최소 거래 기간
+                # =============================================================================
                 # max/min
+                # 최대/최소
                 m = trls.max or 0
                 trls.max = max(m, barlen)
                 m = trls.min or MAXINT
                 trls.min = min(m, barlen or m)
 
+                # =============================================================================
+                # 롱/숏별 승/패 거래 기간 통계
+                # =============================================================================
                 for wlname in ['won', 'lost']:
                     wl = res[wlname]  # won/lost
 
@@ -201,7 +264,11 @@ class TradeAnalyzer(Analyzer):
                     trls_wl.average = \
                         trls_wl.total / (trades[lsname][wlname] or 1.0)
 
+                    # =============================================================================
+                    # 최대/최소 거래 기간
+                    # =============================================================================
                     # max/min
+                    # 최대/최소
                     m = trls_wl.max or 0
                     trls_wl.max = max(m, barlen2)
                     m = trls_wl.min or MAXINT

@@ -26,25 +26,43 @@ import testcommon
 import backtrader as bt
 import backtrader.indicators as btind
 
+# 테스트할 데이터 개수
 chkdatas = 1
+
+# ATR 지표의 예상 값들 (14일 Average True Range)
+# 각 값은 [시작점, 중간점, 끝점] 순서로 되어 있음
+# ATR은 시장의 변동성을 측정하는 지표로, 절대값으로 표현됩니다
 chkvals = [
     ['35.866308', '34.264286', '54.329064'],
 ]
 
+# 지표의 최소 기간 (ATR의 경우 14일 + 1 = 15일)
 chkmin = 15
+
+# 테스트할 지표 클래스 (Average True Range)
 chkind = btind.ATR
 
 
 def test_run(main=False):
+    """
+    ATR 지표 테스트를 실행하는 함수
+    
+    Args:
+        main: 메인 출력 모드 여부 (True면 상세 정보 출력)
+    """
+    # 테스트 데이터 로드
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
+    
+    # 공통 테스트 함수를 사용하여 ATR 지표 테스트 실행
     testcommon.runtest(datas,
                        testcommon.TestStrategy,
                        main=main,
-                       plot=main,
-                       chkind=chkind,
-                       chkmin=chkmin,
-                       chkvals=chkvals)
+                       plot=main,          # main=True일 때만 플롯 표시
+                       chkind=chkind,      # 테스트할 지표
+                       chkmin=chkmin,      # 최소 기간
+                       chkvals=chkvals)    # 예상 값들
 
 
 if __name__ == '__main__':
+    # 스크립트가 직접 실행될 때 메인 모드로 테스트 실행
     test_run(main=True)

@@ -25,25 +25,44 @@ import testcommon
 
 import backtrader as bt
 
+# 테스트할 데이터 개수
 chkdatas = 1
+
+# RMI 지표의 예상 값들 (14일 Relative Momentum Index)
+# 각 값은 [시작점, 중간점, 끝점] 순서로 되어 있음
+# RMI는 RSI와 유사하지만 모멘텀을 상대적으로 측정하는 지표입니다
+# 0-100 범위의 값을 가지며, 70 이상은 과매수, 30 이하는 과매도로 간주됩니다
 chkvals = [
     ['67.786097', '59.856230', '38.287526']
 ]
 
+# 지표의 최소 기간 (RMI의 경우 14일 + 11일 = 25일)
 chkmin = 25
+
+# 테스트할 지표 클래스 (Relative Momentum Index)
 chkind = bt.ind.RMI
 
 
 def test_run(main=False):
+    """
+    RMI 지표 테스트를 실행하는 함수
+    
+    Args:
+        main: 메인 출력 모드 여부 (True면 상세 정보 출력)
+    """
+    # 테스트 데이터 로드
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
+    
+    # 공통 테스트 함수를 사용하여 RMI 지표 테스트 실행
     testcommon.runtest(datas,
                        testcommon.TestStrategy,
                        main=main,
-                       plot=main,
-                       chkind=chkind,
-                       chkmin=chkmin,
-                       chkvals=chkvals)
+                       plot=main,          # main=True일 때만 플롯 표시
+                       chkind=chkind,      # 테스트할 지표
+                       chkmin=chkmin,      # 최소 기간
+                       chkvals=chkvals)    # 예상 값들
 
 
 if __name__ == '__main__':
+    # 스크립트가 직접 실행될 때 메인 모드로 테스트 실행
     test_run(main=True)

@@ -26,27 +26,47 @@ import testcommon
 import backtrader as bt
 import backtrader.indicators as btind
 
+# 테스트할 데이터 개수
 chkdatas = 1
+
+# WMA Envelope 지표의 예상 값들 (30일 WMA Envelope)
+# WMA Envelope는 3개의 라인을 가짐: [Lower Band, Middle Band, Upper Band]
+# 각 값은 [시작점, 중간점, 끝점] 순서로 되어 있음
+# WMA Envelope는 WMA(Weighted Moving Average)를 중심으로 상하 밴드를 생성합니다
+# WMA는 최근 데이터에 더 높은 가중치를 부여하여 일반 SMA보다 반응이 빠릅니다
 chkvals = [
-    ['4076.212366', '3655.193634', '3576.228000'],
-    ['4178.117675', '3746.573475', '3665.633700'],
-    ['3974.307056', '3563.813794', '3486.822300'],
+    ['4076.212366', '3655.193634', '3576.228000'],   # Lower Band (하단 밴드)
+    ['4178.117675', '3746.573475', '3665.633700'],   # Middle Band (중간 밴드)
+    ['3974.307056', '3563.813794', '3486.822300'],   # Upper Band (상단 밴드)
 ]
 
+# 지표의 최소 기간 (WMA Envelope의 경우 30일)
 chkmin = 30
+
+# 테스트할 지표 클래스 (WMA Envelope)
 chkind = btind.WMAEnvelope
 
 
 def test_run(main=False):
+    """
+    WMA Envelope 지표 테스트를 실행하는 함수
+    
+    Args:
+        main: 메인 출력 모드 여부 (True면 상세 정보 출력)
+    """
+    # 테스트 데이터 로드
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
+    
+    # 공통 테스트 함수를 사용하여 WMA Envelope 지표 테스트 실행
     testcommon.runtest(datas,
                        testcommon.TestStrategy,
                        main=main,
-                       plot=main,
-                       chkind=chkind,
-                       chkmin=chkmin,
-                       chkvals=chkvals)
+                       plot=main,          # main=True일 때만 플롯 표시
+                       chkind=chkind,      # 테스트할 지표
+                       chkmin=chkmin,      # 최소 기간
+                       chkvals=chkvals)    # 예상 값들
 
 
 if __name__ == '__main__':
+    # 스크립트가 직접 실행될 때 메인 모드로 테스트 실행
     test_run(main=True)

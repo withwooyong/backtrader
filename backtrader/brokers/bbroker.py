@@ -18,6 +18,25 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
+
+# =============================================================================
+# 백테스팅 브로커(Broker) 모듈
+# =============================================================================
+# 이 모듈은 Backtrader의 핵심 브로커 시뮬레이터를 구현합니다.
+# BackBroker는 백테스팅 환경에서 실제 브로커의 동작을 시뮬레이션하여
+# 주문 실행, 포지션 관리, 자금 관리, 수수료 계산 등을 처리합니다.
+# 
+# 주요 기능:
+# - 다양한 주문 유형 지원 (시장가, 지정가, 스탑, 스탑리밋 등)
+# - 현금 및 마진 검증
+# - 포지션별 손익 계산
+# - 수수료 및 슬리피지 적용
+# - 세션별 거래 관리
+# 
+# 이 브로커는 Cerebro에 의해 자동으로 인스턴스화되며,
+# 사용자는 파라미터만 조정하여 사용할 수 있습니다.
+# =============================================================================
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -33,6 +52,11 @@ from backtrader.utils.py3 import string_types, integer_types
 __all__ = ['BackBroker', 'BrokerBack']
 
 
+# =============================================================================
+# BackBroker 클래스 - 브로커 시뮬레이터
+# =============================================================================
+# 이 클래스는 백테스팅 환경에서 실제 브로커의 모든 기능을 시뮬레이션합니다.
+# 주문 제출부터 실행, 포지션 관리, 자금 관리까지 전 과정을 처리합니다.
 class BackBroker(bt.BrokerBase):
     '''Broker Simulator
 
@@ -221,59 +245,107 @@ class BackBroker(bt.BrokerBase):
           the total net asset value
 
     '''
+    
+    # =============================================================================
+    # 브로커 파라미터 설정
+    # =============================================================================
     params = (
-        ('cash', 10000.0),
-        ('checksubmit', True),
-        ('eosbar', False),
-        ('filler', None),
-        # slippage options
-        ('slip_perc', 0.0),
-        ('slip_fixed', 0.0),
-        ('slip_open', False),
-        ('slip_match', True),
-        ('slip_limit', True),
-        ('slip_out', False),
-        ('coc', False),
-        ('coo', False),
-        ('int2pnl', True),
-        ('shortcash', True),
-        ('fundstartval', 100.0),
-        ('fundmode', False),
+        ('cash', 10000.0),        # 시작 현금 (기본값: 10,000)
+        ('checksubmit', True),    # 주문 제출 전 현금/마진 검증 여부
+        ('eosbar', False),        # 세션 종료 바 처리 방식
+        ('filler', None),         # 주문 실행 시 가격 채우기 함수
+        
+        # =============================================================================
+        # 슬리피지 관련 옵션들
+        # =============================================================================
+        ('slip_perc', 0.0),      # 퍼센트 기반 슬리피지 (예: 0.1 = 0.1%)
+        ('slip_fixed', 0.0),     # 고정 금액 슬리피지 (예: 0.01 = 1센트)
+        ('slip_open', False),    # 시가에서 슬리피지 적용 여부
+        ('slip_match', True),    # 매칭 시 슬리피지 적용 여부
+        ('slip_limit', True),    # 지정가 주문 시 슬리피지 적용 여부
+        ('slip_out', False),     # 고가/저가 범위 밖에서도 슬리피지 적용 여부
+        
+        # =============================================================================
+        # 거래 실행 관련 옵션들
+        # =============================================================================
+        ('coc', False),          # Cheat-On-Close: 시장가 주문을 현재 바 종가로 실행
+        ('coo', False),          # Cheat-On-Open: 시장가 주문을 다음 바 시가로 실행
+        ('int2pnl', True),       # 이자를 손익에 포함 여부
+        ('shortcash', True),     # 공매도 시 현금 증가 여부
+        
+        # =============================================================================
+        # 펀드 모드 관련 설정
+        # =============================================================================
+        ('fundstartval', 100.0), # 펀드 시작 가치 (기본값: 100.0)
+        ('fundmode', False),     # 펀드 모드 사용 여부 (분석기에서 펀드 가치 기준 사용)
     )
 
     def __init__(self):
+        # =============================================================================
+        # 브로커 초기화
+        # =============================================================================
         super(BackBroker, self).__init__()
-        self._userhist = []
-        self._fundhist = []
-        # share_value, net asset value
+        
+        # =============================================================================
+        # 사용자 및 펀드 히스토리 초기화
+        # =============================================================================
+        self._userhist = []      # 사용자 거래 히스토리
+        self._fundhist = []      # 펀드 가치 히스토리
+        # share_value, net asset value (주식 가치, 순자산 가치)
         self._fhistlast = [float('NaN'), float('NaN')]
 
     def init(self):
+        # =============================================================================
+        # 브로커 실행 시 초기화
+        # =============================================================================
         super(BackBroker, self).init()
-        self.startingcash = self.cash = self.p.cash
-        self._value = self.cash
-        self._valuemkt = 0.0  # no open position
+        
+        # =============================================================================
+        # 현금 및 가치 초기화
+        # =============================================================================
+        self.startingcash = self.cash = self.p.cash  # 시작 현금 설정
+        self._value = self.cash                       # 현재 가치 (현금 기준)
+        self._valuemkt = 0.0                         # 시장 가치 (오픈 포지션 없음)
 
-        self._valuelever = 0.0  # no open position
-        self._valuemktlever = 0.0  # no open position
+        # =============================================================================
+        # 레버리지 관련 가치 초기화
+        # =============================================================================
+        self._valuelever = 0.0                       # 레버리지 가치 (오픈 포지션 없음)
+        self._valuemktlever = 0.0                    # 시장 레버리지 가치 (오픈 포지션 없음)
 
-        self._leverage = 1.0  # initially nothing is open
-        self._unrealized = 0.0  # no open position
+        # =============================================================================
+        # 레버리지 및 미실현 손익 초기화
+        # =============================================================================
+        self._leverage = 1.0                         # 레버리지 (초기값: 1.0, 포지션 없음)
+        self._unrealized = 0.0                       # 미실현 손익 (오픈 포지션 없음)
 
-        self.orders = list()  # will only be appending
-        self.pending = collections.deque()  # popleft and append(right)
-        self._toactivate = collections.deque()  # to activate in next cycle
+        # =============================================================================
+        # 주문 관리 컨테이너들 초기화
+        # =============================================================================
+        self.orders = list()                         # 모든 주문 목록 (추가만 가능)
+        self.pending = collections.deque()           # 대기 중인 주문 (왼쪽 제거, 오른쪽 추가)
+        self._toactivate = collections.deque()       # 다음 사이클에 활성화할 주문들
 
-        self.positions = collections.defaultdict(Position)
-        self.d_credit = collections.defaultdict(float)  # credit per data
-        self.notifs = collections.deque()
+        # =============================================================================
+        # 포지션 및 신용 관리 초기화
+        # =============================================================================
+        self.positions = collections.defaultdict(Position)  # 데이터별 포지션 관리
+        self.d_credit = collections.defaultdict(float)      # 데이터별 신용 관리
+        self.notifs = collections.deque()                   # 알림 큐
 
-        self.submitted = collections.deque()
+        # =============================================================================
+        # 제출된 주문 및 종속 주문 관리
+        # =============================================================================
+        self.submitted = collections.deque()         # 제출된 주문들
 
-        # to keep dependent orders if needed
+        # to keep dependent orders if needed (필요시 종속 주문들을 유지)
+        # 종속 주문들을 관리하기 위한 컨테이너
         self._pchildren = collections.defaultdict(collections.deque)
 
-        self._ocos = dict()
+        # =============================================================================
+        # OCO 주문 관리
+        # =============================================================================
+        self._ocos = dict()                          # OCO (One-Cancels-Other) 주문 관리
         self._ocol = collections.defaultdict(list)
 
         self._fundval = self.p.fundstartval
@@ -326,6 +398,9 @@ class BackBroker(bt.BrokerBase):
     def set_slippage_perc(self, perc,
                           slip_open=True, slip_limit=True,
                           slip_match=True, slip_out=False):
+        # =============================================================================
+        # 퍼센트 기반 슬리피지 설정
+        # =============================================================================
         '''Configure slippage to be percentage based'''
         self.p.slip_perc = perc
         self.p.slip_fixed = 0.0
@@ -337,6 +412,9 @@ class BackBroker(bt.BrokerBase):
     def set_slippage_fixed(self, fixed,
                            slip_open=True, slip_limit=True,
                            slip_match=True, slip_out=False):
+        # =============================================================================
+        # 고정 포인트 기반 슬리피지 설정
+        # =============================================================================
         '''Configure slippage to be fixed points based'''
         self.p.slip_perc = 0.0
         self.p.slip_fixed = fixed
@@ -346,26 +424,41 @@ class BackBroker(bt.BrokerBase):
         self.p.slip_out = slip_out
 
     def set_filler(self, filler):
+        # =============================================================================
+        # 거래량 채우기 실행을 위한 filler 설정
+        # =============================================================================
         '''Sets a volume filler for volume filling execution'''
         self.p.filler = filler
 
     def set_checksubmit(self, checksubmit):
+        # =============================================================================
+        # 주문 제출 전 검증 여부 설정
+        # =============================================================================
         '''Sets the checksubmit parameter'''
         self.p.checksubmit = checksubmit
 
     def set_eosbar(self, eosbar):
+        # =============================================================================
+        # 세션 종료 바 처리 방식 설정
+        # =============================================================================
         '''Sets the eosbar parameter (alias: ``seteosbar``'''
         self.p.eosbar = eosbar
 
     seteosbar = set_eosbar
 
     def get_cash(self):
+        # =============================================================================
+        # 현재 현금 반환
+        # =============================================================================
         '''Returns the current cash (alias: ``getcash``)'''
         return self.cash
 
     getcash = get_cash
 
     def set_cash(self, cash):
+        # =============================================================================
+        # 현금 설정 (시작 현금, 현재 현금, 파라미터 모두 업데이트)
+        # =============================================================================
         '''Sets the cash parameter (alias: ``setcash``)'''
         self.startingcash = self.cash = self.p.cash = cash
         self._value = cash
@@ -373,26 +466,39 @@ class BackBroker(bt.BrokerBase):
     setcash = set_cash
 
     def add_cash(self, cash):
+        # =============================================================================
+        # 시스템에 현금 추가/제거 (음수 값으로 제거)
+        # =============================================================================
         '''Add/Remove cash to the system (use a negative value to remove)'''
         self._cash_addition.append(cash)
 
     def get_fundshares(self):
+        # =============================================================================
+        # 펀드 모드에서 현재 주식 수 반환
+        # =============================================================================
         '''Returns the current number of shares in the fund-like mode'''
         return self._fundshares
 
     fundshares = property(get_fundshares)
 
     def get_fundvalue(self):
+        # =============================================================================
+        # 펀드 가치 반환
+        # =============================================================================
         '''Returns the Fund-like share value'''
         return self._fundval
 
     fundvalue = property(get_fundvalue)
 
     def cancel(self, order, bracket=False):
+        # =============================================================================
+        # 주문 취소 처리
+        # =============================================================================
         try:
             self.pending.remove(order)
         except ValueError:
             # If the list didn't have the element we didn't cancel anything
+            # 리스트에 해당 요소가 없으면 아무것도 취소하지 않음
             return False
 
         order.cancel()
@@ -403,6 +509,9 @@ class BackBroker(bt.BrokerBase):
         return True
 
     def get_value(self, datas=None, mkt=False, lever=False):
+        # =============================================================================
+        # 포트폴리오 가치 반환
+        # =============================================================================
         '''Returns the portfolio value of the given datas (if datas is ``None``, then
         the total portfolio value will be returned (alias: ``getvalue``)
         '''
@@ -417,9 +526,15 @@ class BackBroker(bt.BrokerBase):
     getvalue = get_value
 
     def get_value_lever(self, datas=None, mkt=False):
+        # =============================================================================
+        # 레버리지가 적용된 포트폴리오 가치 반환
+        # =============================================================================
         return self.get_value(datas=datas, mkt=mkt)
 
     def _get_value(self, datas=None, lever=False):
+        # =============================================================================
+        # 내부 포트폴리오 가치 계산 메서드
+        # =============================================================================
         pos_value = 0.0
         pos_value_unlever = 0.0
         unrealized = 0.0

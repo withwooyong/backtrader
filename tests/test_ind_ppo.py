@@ -26,27 +26,46 @@ import testcommon
 import backtrader as bt
 import backtrader.indicators as btind
 
+# 테스트할 데이터 개수
 chkdatas = 1
+
+# PPO 지표의 예상 값들 (12일 Percentage Price Oscillator)
+# PPO는 3개의 라인을 가짐: [PPO, Signal, Histogram]
+# 각 값은 [시작점, 중간점, 끝점] 순서로 되어 있음
+# PPO는 MACD와 유사하지만 백분율로 표현되어 비교가 용이합니다
 chkvals = [
-    ['0.633439', '0.883552', '0.049430'],
-    ['0.540516', '0.724136', '-0.079820'],
-    ['0.092923', '0.159416', '0.129250']
+    ['0.633439', '0.883552', '0.049430'],   # PPO 라인 (메인 라인)
+    ['0.540516', '0.724136', '-0.079820'],  # Signal 라인 (신호선)
+    ['0.092923', '0.159416', '0.129250']    # Histogram 라인 (히스토그램)
 ]
 
+# 지표의 최소 기간 (PPO의 경우 12일 + 26일 + 9일 = 47일, 실제로는 34일)
 chkmin = 34
+
+# 테스트할 지표 클래스 (Percentage Price Oscillator)
 chkind = btind.PPO
 
 
 def test_run(main=False):
+    """
+    PPO 지표 테스트를 실행하는 함수
+    
+    Args:
+        main: 메인 출력 모드 여부 (True면 상세 정보 출력)
+    """
+    # 테스트 데이터 로드
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
+    
+    # 공통 테스트 함수를 사용하여 PPO 지표 테스트 실행
     testcommon.runtest(datas,
                        testcommon.TestStrategy,
                        main=main,
-                       plot=main,
-                       chkind=chkind,
-                       chkmin=chkmin,
-                       chkvals=chkvals)
+                       plot=main,          # main=True일 때만 플롯 표시
+                       chkind=chkind,      # 테스트할 지표
+                       chkmin=chkmin,      # 최소 기간
+                       chkvals=chkvals)    # 예상 값들
 
 
 if __name__ == '__main__':
+    # 스크립트가 직접 실행될 때 메인 모드로 테스트 실행
     test_run(main=True)

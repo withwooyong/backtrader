@@ -18,6 +18,18 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
+
+# =============================================================================
+# Backtrader 전략 시스템의 핵심 모듈
+# =============================================================================
+# 이 파일은 모든 트레이딩 전략의 기본이 되는 추상 클래스들을 정의합니다.
+# 주요 기능:
+# - 전략 클래스의 메타클래스 관리
+# - 전략 초기화 및 실행 라이프사이클
+# - 주문 및 거래 관리
+# - 포지션 및 포트폴리오 추적
+# =============================================================================
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -40,16 +52,27 @@ from .trade import Trade
 from .utils import OrderedDict, AutoOrderedDict, AutoDictList
 
 
+# =============================================================================
+# MetaStrategy 클래스 - 전략 클래스의 메타클래스
+# =============================================================================
+# 이 클래스는 모든 전략 클래스의 생성과 관리를 담당합니다.
+# 주요 기능:
+# - 전략 클래스 등록 및 관리
+# - 전략 인스턴스 생성 시 초기화
+# - 호환성을 위한 메서드 이름 변환
 class MetaStrategy(StrategyBase.__class__):
-    _indcol = dict()
+    _indcol = dict()  # 전략 클래스들을 저장하는 딕셔너리
 
     def __new__(meta, name, bases, dct):
         # Hack to support original method name for notify_order
+        # 원래 메서드 이름을 지원하기 위한 호환성 처리
         if 'notify' in dct:
             # rename 'notify' to 'notify_order'
+            # 'notify'를 'notify_order'로 이름 변경
             dct['notify_order'] = dct.pop('notify')
         if 'notify_operation' in dct:
             # rename 'notify' to 'notify_order'
+            # 'notify_operation'을 'notify_trade'로 이름 변경
             dct['notify_trade'] = dct.pop('notify_operation')
 
         return super(MetaStrategy, meta).__new__(meta, name, bases, dct)
@@ -57,45 +80,56 @@ class MetaStrategy(StrategyBase.__class__):
     def __init__(cls, name, bases, dct):
         '''
         Class has already been created ... register subclasses
+        클래스가 이미 생성되었으므로 하위 클래스들을 등록합니다
         '''
         # Initialize the class
+        # 클래스 초기화
         super(MetaStrategy, cls).__init__(name, bases, dct)
 
+        # 전략 클래스를 등록 (별칭이 아니고 Strategy가 아니며 언더스코어로 시작하지 않는 경우)
         if not cls.aliased and \
            name != 'Strategy' and not name.startswith('_'):
             cls._indcol[name] = cls
 
     def donew(cls, *args, **kwargs):
+        # 새로운 전략 인스턴스 생성
         _obj, args, kwargs = super(MetaStrategy, cls).donew(*args, **kwargs)
 
         # Find the owner and store it
+        # 소유자(Cerebro)를 찾아서 저장
         _obj.env = _obj.cerebro = cerebro = findowner(_obj, bt.Cerebro)
-        _obj._id = cerebro._next_stid()
+        _obj._id = cerebro._next_stid()  # 고유 ID 할당
 
         return _obj, args, kwargs
 
     def dopreinit(cls, _obj, *args, **kwargs):
+        # 전략 인스턴스 사전 초기화
         _obj, args, kwargs = \
             super(MetaStrategy, cls).dopreinit(_obj, *args, **kwargs)
-        _obj.broker = _obj.env.broker
-        _obj._sizer = bt.sizers.FixedSize()
-        _obj._orders = list()
-        _obj._orderspending = list()
-        _obj._trades = collections.defaultdict(AutoDictList)
-        _obj._tradespending = list()
+        
+        # =============================================================================
+        # 전략 인스턴스의 핵심 속성들을 초기화
+        # =============================================================================
+        _obj.broker = _obj.env.broker          # 브로커 참조 설정
+        _obj._sizer = bt.sizers.FixedSize()    # 기본 포지션 크기 결정자 (고정 크기)
+        _obj._orders = list()                  # 주문 목록
+        _obj._orderspending = list()           # 대기 중인 주문 목록
+        _obj._trades = collections.defaultdict(AutoDictList)  # 거래 기록 (자동 딕셔너리)
+        _obj._tradespending = list()           # 진행 중인 거래 목록
 
-        _obj.stats = _obj.observers = ItemCollection()
-        _obj.analyzers = ItemCollection()
-        _obj._alnames = collections.defaultdict(itertools.count)
-        _obj.writers = list()
+        _obj.stats = _obj.observers = ItemCollection()  # 관찰자 및 통계 수집기
+        _obj.analyzers = ItemCollection()               # 성과 분석기
+        _obj._alnames = collections.defaultdict(itertools.count)  # 분석기 이름 관리
+        _obj.writers = list()                           # 결과 출력기 목록
 
-        _obj._slave_analyzers = list()
+        _obj._slave_analyzers = list()                  # 하위 분석기 목록
 
-        _obj._tradehistoryon = False
+        _obj._tradehistoryon = False                    # 거래 기록 활성화 여부
 
         return _obj, args, kwargs
 
     def dopostinit(cls, _obj, *args, **kwargs):
+        # 전략 인스턴스 사후 초기화
         _obj, args, kwargs = \
             super(MetaStrategy, cls).dopostinit(_obj, *args, **kwargs)
 

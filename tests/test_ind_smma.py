@@ -26,25 +26,45 @@ import testcommon
 import backtrader as bt
 import backtrader.indicators as btind
 
+# 테스트할 데이터 개수
 chkdatas = 1
+
+# SMMA 지표의 예상 값들 (30일 Smoothed Moving Average)
+# 각 값은 [시작점, 중간점, 끝점] 순서로 되어 있음
+# SMMA는 Smoothed Moving Average의 약자로, 일반 SMA보다 더 부드러운 선을 제공합니다
+# 이 지표는 모든 데이터에 동일한 가중치를 부여하지만, 이전 값과의 평균을 사용하여 노이즈를 줄입니다
+# 일반 SMA보다 지연이 있지만, 더 안정적이고 신뢰할 수 있는 신호를 제공합니다
 chkvals = [
     ['4021.569725', '3644.444667', '3616.427648'],
 ]
 
+# 지표의 최소 기간 (SMMA의 경우 30일)
 chkmin = 30
+
+# 테스트할 지표 클래스 (SMMA)
 chkind = btind.SMMA
 
 
 def test_run(main=False):
+    """
+    SMMA 지표 테스트를 실행하는 함수
+    
+    Args:
+        main: 메인 출력 모드 여부 (True면 상세 정보 출력)
+    """
+    # 테스트 데이터 로드
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
+    
+    # 공통 테스트 함수를 사용하여 SMMA 지표 테스트 실행
     testcommon.runtest(datas,
                        testcommon.TestStrategy,
                        main=main,
-                       plot=main,
-                       chkind=chkind,
-                       chkmin=chkmin,
-                       chkvals=chkvals)
+                       plot=main,          # main=True일 때만 플롯 표시
+                       chkind=chkind,      # 테스트할 지표
+                       chkmin=chkmin,      # 최소 기간
+                       chkvals=chkvals)    # 예상 값들
 
 
 if __name__ == '__main__':
+    # 스크립트가 직접 실행될 때 메인 모드로 테스트 실행
     test_run(main=True)

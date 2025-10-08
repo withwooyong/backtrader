@@ -23,9 +23,9 @@ from __future__ import (absolute_import, division, print_function,
 
 import time
 try:
-    time_clock = time.process_time
+    time_clock = time.process_time  # Python 3.3+ 에서는 process_time 사용
 except:
-    time_clock = time.clock
+    time_clock = time.clock         # 이전 버전에서는 clock 사용
 
 
 import testcommon
@@ -35,15 +35,22 @@ import backtrader.indicators as btind
 
 
 class TestStrategy(bt.Strategy):
+    """
+    SQN(System Quality Number) 분석기 테스트를 위한 전략 클래스
+    
+    이 전략은 SMA 크로스오버를 사용하여 매수/매도 신호를 생성하고,
+    SQN 분석기를 통해 전략의 품질을 측정합니다.
+    """
     params = (
-        ('period', 15),
-        ('maxtrades', None),
-        ('printdata', True),
-        ('printops', True),
-        ('stocklike', True),
+        ('period', 15),        # SMA 기간 (기본값: 15)
+        ('maxtrades', None),   # 최대 거래 수 제한 (None이면 제한 없음)
+        ('printdata', True),   # 데이터 출력 여부
+        ('printops', True),    # 작업 출력 여부
+        ('stocklike', True),   # 주식과 유사한 거래 모드 여부
     )
 
     def log(self, txt, dt=None, nodate=False):
+        """로그 메시지를 출력하는 헬퍼 메서드"""
         if not nodate:
             dt = dt or self.data.datetime[0]
             dt = bt.num2date(dt)
@@ -52,21 +59,25 @@ class TestStrategy(bt.Strategy):
             print('---------- %s' % (txt))
 
     def notify_trade(self, trade):
+        """거래 완료 시 호출되는 알림 메서드"""
         if trade.isclosed:
-            self.tradecount += 1
+            self.tradecount += 1  # 완료된 거래 수 증가
 
     def notify_order(self, order):
+        """주문 상태 변경 시 호출되는 알림 메서드"""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
-            return  # Await further notifications
+            return  # 추가 알림 대기
 
         if order.status == order.Completed:
             if isinstance(order, bt.BuyOrder):
+                # 매수 주문 완료
                 if self.p.printops:
                     txt = 'BUY, %.2f' % order.executed.price
                     self.log(txt, order.executed.dt)
                 chkprice = '%.2f' % order.executed.price
                 self.buyexec.append(chkprice)
             else:  # elif isinstance(order, SellOrder):
+                # 매도 주문 완료
                 if self.p.printops:
                     txt = 'SELL, %.2f' % order.executed.price
                     self.log(txt, order.executed.dt)
@@ -75,20 +86,25 @@ class TestStrategy(bt.Strategy):
                 self.sellexec.append(chkprice)
 
         elif order.status in [order.Expired, order.Canceled, order.Margin]:
+            # 주문 만료, 취소, 마진 부족
             if self.p.printops:
                 self.log('%s ,' % order.Status[order.status])
 
-        # Allow new orders
+        # 새로운 주문 허용
         self.orderid = None
 
     def __init__(self):
-        # Flag to allow new orders in the system or not
+        """전략 초기화"""
+        # 새로운 주문을 허용할지 여부를 제어하는 플래그
         self.orderid = None
 
+        # SMA 지표와 크로스오버 신호 생성
         self.sma = btind.SMA(self.data, period=self.p.period)
         self.cross = btind.CrossOver(self.data.close, self.sma, plot=True)
 
     def start(self):
+        """전략 시작 시 호출되는 메서드"""
+        # 주식과 유사하지 않은 거래 모드일 때 수수료 설정
         if not self.p.stocklike:
             self.broker.setcommission(commission=2.0, mult=10.0, margin=1000.0)
 
@@ -97,16 +113,19 @@ class TestStrategy(bt.Strategy):
             self.log('Starting portfolio value: %.2f' % self.broker.getvalue(),
                      nodate=True)
 
-        self.tstart = time_clock()
+        self.tstart = time_clock()  # 시작 시간 기록
 
-        self.buycreate = list()
-        self.sellcreate = list()
-        self.buyexec = list()
-        self.sellexec = list()
-        self.tradecount = 0
+        # 거래 기록을 저장할 리스트들 초기화
+        self.buycreate = list()   # 매수 주문 생성 가격들
+        self.sellcreate = list()  # 매도 주문 생성 가격들
+        self.buyexec = list()     # 매수 주문 실행 가격들
+        self.sellexec = list()    # 매도 주문 실행 가격들
+        self.tradecount = 0       # 완료된 거래 수
 
     def stop(self):
-        tused = time_clock() - self.tstart
+        """전략 종료 시 호출되는 메서드"""
+        tused = time_clock() - self.tstart  # 사용된 시간 계산
+        
         if self.p.printdata:
             self.log('Time used: %s' % str(tused))
             self.log('Final portfolio value: %.2f' % self.broker.getvalue())
@@ -116,7 +135,9 @@ class TestStrategy(bt.Strategy):
             pass
 
     def next(self):
+        """각 바(bar)마다 호출되는 메인 로직"""
         if self.p.printdata:
+            # OHLC 데이터와 SMA 값 출력
             self.log(
                 'Open, High, Low, Close, %.2f, %.2f, %.2f, %.2f, Sma, %f' %
                 (self.data.open[0], self.data.high[0],
@@ -126,12 +147,13 @@ class TestStrategy(bt.Strategy):
                      (self.data.close[0], self.sma[0]))
 
         if self.orderid:
-            # if an order is active, no new orders are allowed
+            # 활성 주문이 있으면 새로운 주문을 허용하지 않음
             return
 
+        # 포지션이 없을 때 매수 신호 확인
         if not self.position.size:
             if self.p.maxtrades is None or self.tradecount < self.p.maxtrades:
-                if self.cross > 0.0:
+                if self.cross > 0.0:  # 가격이 SMA 위로 크로스
                     if self.p.printops:
                         self.log('BUY CREATE , %.2f' % self.data.close[0])
 
@@ -139,7 +161,8 @@ class TestStrategy(bt.Strategy):
                     chkprice = '%.2f' % self.data.close[0]
                     self.buycreate.append(chkprice)
 
-        elif self.cross < 0.0:
+        # 포지션이 있을 때 매도 신호 확인
+        elif self.cross < 0.0:  # 가격이 SMA 아래로 크로스
             if self.p.printops:
                 self.log('SELL CREATE , %.2f' % self.data.close[0])
 
@@ -148,38 +171,54 @@ class TestStrategy(bt.Strategy):
             self.sellcreate.append(chkprice)
 
 
+# 테스트할 데이터 개수
 chkdatas = 1
 
 
 def test_run(main=False):
+    """
+    SQN 분석기 테스트를 실행하는 메인 함수
+    
+    Args:
+        main: 메인 출력 모드 여부 (True면 상세 정보 출력)
+    """
+    # 테스트 데이터 로드
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
 
+    # 다양한 최대 거래 수 설정으로 테스트 실행
     for maxtrades in [None, 0, 1]:
+        # 공통 테스트 함수를 사용하여 전략 테스트 실행
         cerebros = testcommon.runtest(datas,
                                       TestStrategy,
                                       printdata=main,
-                                      stocklike=False,
-                                      maxtrades=maxtrades,
+                                      stocklike=False,        # 선물 거래 모드
+                                      maxtrades=maxtrades,    # 최대 거래 수 제한
                                       printops=main,
                                       plot=main,
-                                      analyzer=(bt.analyzers.SQN, {}))
+                                      analyzer=(bt.analyzers.SQN, {}))  # SQN 분석기 추가
 
+        # 각 Cerebro 객체에서 결과 분석
         for cerebro in cerebros:
-            strat = cerebro.runstrats[0][0]  # no optimization, only 1
-            analyzer = strat.analyzers[0]  # only 1
-            analysis = analyzer.get_analysis()
+            strat = cerebro.runstrats[0][0]  # 최적화 없음, 단일 전략만
+            analyzer = strat.analyzers[0]     # 단일 분석기만
+            analysis = analyzer.get_analysis()  # 분석 결과 가져오기
+            
             if main:
+                # 메인 모드일 때 분석 결과 출력
                 print(analysis)
                 print(str(analysis.sqn))
             else:
+                # 테스트 모드일 때 결과 검증
                 if maxtrades == 0 or maxtrades == 1:
+                    # 거래가 없거나 1개일 때 SQN은 0이어야 함
                     assert analysis.sqn == 0
                     assert analysis.trades == maxtrades
                 else:
-                    # Handle different precision
+                    # 정상 거래 시 SQN 값 검증 (정밀도 차이 고려)
                     assert str(analysis.sqn)[0:14] == '0.912550316439'
                     assert str(analysis.trades) == '11'
 
 
 if __name__ == '__main__':
+    # 스크립트가 직접 실행될 때 메인 모드로 테스트 실행
     test_run(main=True)
